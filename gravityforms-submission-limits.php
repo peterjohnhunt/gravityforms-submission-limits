@@ -187,13 +187,13 @@ function gfsl_get_people_count( $form ) {
         'end_date'   => $range['end_date'],
     );
     
-    $entries = GFAPI::get_entries($form['id'], $search_criteria);
+    $entries = GFAPI::get_entries($form['id'], $search_criteria, [], ['offset' => 0, 'page_size' => 200]);
     
     if ( !$entries ) return $count;
     
     foreach ($entries as $entry) {
         foreach ($field_ids as $field_id) {
-            $count += intval(rgar( $entry, $field_id )) ?: 0;
+            $count += rgar( $entry, $field_id ) ? intval(rgar( $entry, $field_id )) : 0;
         }
     }
 
@@ -229,6 +229,24 @@ add_filter( 'gform_pre_form_settings_save', 'gfsl_save_people_settings' );
 
 
 //≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+// ✅ Admin
+//≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+function gfsl_add_custom_admin_column($columns) {
+    $columns = array_slice($columns, 0, 5, true) + ['people' => esc_html__( 'People', 'gravityforms' )] + array_slice($columns, 5, NULL, true);
+    return $columns;
+}
+add_filter( 'gform_form_list_columns', 'gfsl_add_custom_admin_column', 10, 1 );
+
+function gfsl_handle_admin_people_column_row($item) {
+    $form = GFAPI::get_form($item->id);
+
+    $count = rgar( $form, 'limitPeople' ) ? absint(gfsl_get_people_count($form)) : 'N/A';
+
+    echo '<a href="?page=gf_entries&id='. absint( $form->id ) .'">' . $count . '</a>';
+}
+add_action( 'gform_form_list_column_people', 'gfsl_handle_admin_people_column_row' );
+
+//≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
 // ✅ Validation
 //≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
 function gfsl_validate_people_limit( $validation_result ) {
@@ -243,7 +261,7 @@ function gfsl_validate_people_limit( $validation_result ) {
 
     $requested = 0;
     foreach ($count_field_ids as $count_field_id) {
-        $requested += intval(rgpost('input_'.$count_field_id) ?: 0);
+        $requested += rgpost('input_'.$count_field_id) ? intval(rgpost('input_'.$count_field_id)) : 0;
     }
 
     $count     = gfsl_get_people_count($form);
